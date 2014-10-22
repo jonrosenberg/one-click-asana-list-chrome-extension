@@ -18,7 +18,7 @@ It is strongly based on the Asana Example available at <a>https://github.com/Asa
 
 ##To build and run
 ==================================
-1. <b>Get the code!</b> For that you can clone it with: <pre><code>git clone https://github.com/nunovinhas/asana-chrome-extension </pre></code>
+1. <b>Get the code!</b> For that you can clone it with: <pre><code>git clone https://github.com/jonrosenberg/one-click-asana-list-chrome-extension </pre></code>
 2. Go to Google Chrome settings tab and select <b>Tools->Extensions</b>;
 3. Be sure that the <b>Developer mode is on</b>;
 4. Now you need to import the code from point 1. To do that <b>click on Load Unpacked Extension</b>.
