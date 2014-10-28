@@ -1,473 +1,944 @@
+/**
+ * Code for the popup UI.
+ */
+Popup = {
 
-    var me = {};
+  // Is this an external popup window? (vs. the one from the menu)
+  is_external: false,
+
+  // Options loaded when popup opened.
+  options: null,
+
+  // Info from page we were triggered from
+  page_title: null,
+  page_url: null,
+  page_selection: null,
+  favicon_url: null,
+
+  // State to track so we only log events once.
+  has_edited_name: false,
+  has_edited_notes: false,
+  has_reassigned: false,
+  has_used_page_details: false,
+  is_first_add: true,
+
+  // Data from API cached for this popup.
+  workspaces: null,
+//  users: null,
+//  user_id: null,
   
-    var tasksNumber = 0;
-    var tasksInboxNumber = 0;
-    var tasksTodayNumber = 0;
-    var tasksUpcomingNumber = 0;
-    var tasksLaterNumber = 0;
+  // Typeahead ui element
+  typeahead: null,
+  SILHOUETTE_URL: "./nopicture.png",
 
-    var tasksArray = [];
-    var tasksInboxArray = [];
-    var tasksTodayArray = [];
-    var tasksUpcomingArray = [];
-    var tasksLaterArray = [];
+  onLoad: function() {
+    var me = this;
 
-    var failed = false;
-    var inAddTaskView = false;
-    var tasksCompleted = -1;
+    me.is_external = ('' + window.location.search).indexOf("external=true") !== -1;
 
-    var taskIdComp = 0;
+    // Our default error handler.
+    Asana.ServerModel.onError = function(response) {
+      me.showError(response.errors[0].message);
+    };
 
-      window.addEventListener('load', function() {
-      
-      // Refresh addTask screen
-      fillForm();
-      
-      // Check for errors connecting to server.
-      Asana.ServerModel.onError = function(response) {
-          showError(response.errors[0].message);
-        };
-
-        chrome.windows.getCurrent(function(w) {
-            chrome.tabs.query({
-              active: true,
-              windowId: w.id
-            }, function(tabs) {
-              // Load options.
-              Asana.ServerModel.options(function(options) {
-                  // Ensure the user is logged in.
-                  console.timeline("is_logged_in");
-                  console.time("is_logged_in");
-                  Asana.ServerModel.isLoggedIn(function(is_logged_in) {
-                    console.timeEnd("is_logged_in");
-                    if (is_logged_in) {
-
-                      showView("tasks");
-                      loadCachedTasks();
-                      refreshTasksCounter();
-                      $(".loading").css("display", "block");
-
-                      window.setTimeout(getRemainingTasks,100);
-                    
-                    } else {
-                          // The user is not even logged in. Prompt them to do so!
-                          showLogin(Asana.Options.loginUrl(options));
-                    }
-                  });
+    // Ah, the joys of asynchronous programming.
+    // To initialize, we've got to gather various bits of information.
+    // Starting with a reference to the window and tab that were active when
+    // the popup was opened ...
+    chrome.tabs.query({
+      active: true,
+      currentWindow: true
+    }, function(tabs) {
+      var tab = tabs[0];
+      // Now load our options ...
+      Asana.ServerModel.options(function(options) {
+        me.options = options;
+        // And ensure the user is logged in ...
+        Asana.ServerModel.isLoggedIn(function(is_logged_in) {
+          if (is_logged_in) {
+            if (window.quick_add_request) {
+              Asana.ServerModel.logEvent({
+                name: "ChromeExtension-Open-QuickAdd"
               });
-            });
-        });
-      });
-
-
-    function getRemainingTasks(){
-      // Array containing all user's workspaces.
-      var workspacesArray = [];
-      // Array containing all user's projects.
-      var projectsArray = [];
-      
-      Asana.ServerModel.me(function(user) {
-        
-        me = user;
-
-        taskIdComp = 0;
-        tasksNumber = 0;
-        tasksInboxNumber = 0;
-        tasksTodayNumber = 0;
-        tasksUpcomingNumber = 0;
-        tasksLaterNumber = 0;
-
-          console.timeline("workspaces");
-          console.time("workspaces");
-          Asana.ServerModel.workspaces(function(workspaces) {
-            console.timeEnd("workspaces");
-          // Set the user's workspaces array.
-          workspacesArray = workspaces;
-
-          // If there are no workspaces, run out of here!
-          if(workspacesArray == null || workspacesArray.length == 0){
-            return;
-          } 
-      
-          for(var i = 0;i<workspacesArray.length;i++){
-            var workspaceID = workspacesArray[i].id;
-            console.timeline("tasks "+i);
-            console.time("tasks "+i);
-            Asana.ServerModel.tasks(workspaceID,function(tasks) {
-              console.timeEnd("tasks "+taskIdComp);
-              taskIdComp += 1;
-              if(taskIdComp == 1){
-                tasksArray = [];
-                tasksInboxArray = [];
-                tasksTodayArray = [];
-                tasksUpcomingArray = [];
-                tasksLaterArray = [];
-              }
-              
-              for (var i = 0; i < tasks.length; i++) {
-                tasksArray.push(tasks[i]);
-              };
-
-              if(taskIdComp != workspacesArray.length){
-                return;
-              }
-              
-
-              var index = 1;
-              tasksArray.forEach(function(task) {
-                if(task.completed == false){
-                  
-                  if (task.assignee_status == "inbox"){
-                    tasksInboxArray.push(task);
-                  } else if (task.assignee_status == "today") {
-                    tasksTodayArray.push(task);
-                  } else if (task.assignee_status == "upcoming") {
-                    tasksUpcomingArray.push(task);
-                  } else if (task.assignee_status == "later") {
-                    tasksLaterArray.push(task);
-                  }
-                } 
-                if(tasksArray.length == index){
-                  
-                  tasksInboxNumber += showTasks(tasksInboxArray, "inboxList");
-                  
-                  tasksTodayNumber += showTasks(tasksTodayArray, "todayList");
-
-                  tasksUpcomingNumber += showTasks(tasksUpcomingArray, "upcomingList");
-                  
-                  tasksLaterNumber += showTasks(tasksLaterArray, "laterList");
-                  
-                  refreshTasksCounter();
-  
-                  $(".loading").css("display", "none");
-                  
-                  if(!failed && tasksCompleted != -1){
-                    if(tasksCompleted == 1){
-                      showSuccess("You've marked one task as completed.");
-                    }
-                    else{
-                      showSuccess("You've marked "+tasksCompleted+" tasks as completed.");
-                    }
-                  }
-                  failed = false;
-                  tasksCompleted = -1;
-                  
-                  return;
+              // If this was a QuickAdd request (set by the code popping up
+              // the window in Asana.ExtensionServer), then we have all the
+              // info we need and should show the add UI right away.
+              me.showAddUi(
+                  quick_add_request.url, quick_add_request.title,
+                  quick_add_request.selected_text,
+                  quick_add_request.favicon_url);
+            } else {
+              Asana.ServerModel.logEvent({
+                name: "ChromeExtension-Open-Button"
+              });
+              // Otherwise we want to get the selection from the tab that
+              // was active when we were opened. So we set up a listener
+              // to listen for the selection send event from the content
+              // window ...
+              var selection = "";
+              var listener = function(request, sender, sendResponse) {
+                if (request.type === "selection") {
+                  chrome.runtime.onMessage.removeListener(listener);
+                  console.info("Asana popup got selection");
+                  selection = "\n" + request.value;
                 }
-                index++;
-              });// End of forEach task
-
-              });// End of get tasks of a workspace
-          }// End for
-            });   
-        });
-    } // End function
-
-
-    /***********************************************************
-     * Errors && Success && Info
-     ***********************************************************/
-    var showError = function(message) {
-      $("#error").css("display", "");
-      $('#error').animate({"opacity": "1"}, "fast");
-      
-      setTimeout(hideError, 5000);
-    };
-
-    var hideError = function() {
-      $('#error').animate({"opacity": "0"}, "fast", function(){
-        $("#error").css("display", "none");
-      });
-    };
-    
-    var showSuccess = function(message) {
-      $("#success").css("display", "");
-      $("#successMessage").html(message === null ? "Done!":message);
-      $('#success').animate({"opacity": "1"}, "fast");
-      
-      setTimeout(hideSuccess, 4000);
-    };
-
-    var hideSuccess = function() {
-      $('#success').animate({"opacity": "0"}, "fast", function(){
-        $("#success").css("display", "none");
-      });
-    };
-    
-    var showInfo = function(message) {
-      $("#info").css("display", "");
-      $("#infoMessage").html(message === null ? "Done!":message);
-      $('#info').animate({"opacity": "1"}, "fast");
-      
-      setTimeout(hideInfo, 4000);
-    };
-
-    var hideInfo = function() {
-      $('#info').animate({"opacity": "0"}, "fast", function(){
-        $("#info").css("display", "none");
-      });
-    };
-
-    /***********************************************************
-     * Views
-     ***********************************************************/
-    
-    // Helper to show a named view.
-    var showView = function(name) {
-      $("#busy").css("display", "none");
-  
-        ["login", "home", "tasks", "addTask"].forEach(function(view_name) {
-          $("#" + view_name + "_view").css("display", view_name === name ? "" : "none");
-        });
-    };
-
-    // Helper to show the login page.
-    var showLogin = function(url) {
-      $("#login_link").attr("href", url);
-        $("#login_link").unbind("click");
-        $("#login_link").click(function() {
-          chrome.tabs.create({url: url});
-            window.close();
-            return false;
-        });
-        showView("login");
-    };
-
-    function loadCachedTasks() {
-      if(localStorage.getItem("inboxList") ){
-        tasksInboxNumber = showTasks(JSON.parse(localStorage.getItem("inboxList")), "inboxList" );
-      }
-      if(localStorage.getItem("todayList") ) {
-        tasksTodayNumber = showTasks(JSON.parse(localStorage.getItem("todayList")), "todayList" );
-      }
-      if(localStorage.getItem("upcomingList") ) {
-        tasksUpcomingNumber = showTasks(JSON.parse(localStorage.getItem("upcomingList")), "upcomingList" );
-      }
-      if(localStorage.getItem("laterList") ) {
-        tasksLaterNumber = showTasks(JSON.parse(localStorage.getItem("laterList")), "laterList" );
-      }
-    
-    };
-
-    function showTasks(tasksArray, listSelector) {
-  
-      tasksNumber += tasksArray.length;
-
-      localStorage.setItem(listSelector, JSON.stringify(tasksArray));
-
-      $("#"+listSelector).html("");
-      for(var i = 0;i<tasksArray.length;i++){
-        $("#"+listSelector).append("<tr class=\"taskLine\"><td width=\"45px\"> <input id=\""+tasksArray[i].id+"\" type=\"checkbox\"  class=\"regular-checkbox\" /> </td><td> <div class=\"truncate\"> "+tasksArray[i].name+"</div></td></tr><tr class=\"emptyLine\"></tr> ");
-      }
-  
-      // Show the table tasks if !inAddTaskView
-      if(!inAddTaskView){
-        showView("tasks");
-      }
-      return tasksArray.length;
-    };
-    
-    
-    function refreshTasksCounter() {
-
-      $("#inboxCount").html(tasksInboxNumber);
-      $("#todayCount").html(tasksTodayNumber);
-      $("#upcomingCount").html(tasksUpcomingNumber);
-      $("#laterCount").html(tasksLaterNumber);  
-
-      $("#tasksNumberInfo").html("");
-      if(tasksNumber == 1){
-        $("#tasksNumberInfo").append("You've one incomplete task.");  
-      }
-      else{
-        $("#tasksNumberInfo").append("You've "+tasksNumber+" incomplete tasks."); 
-      }
-      
-      // Refresh badge
-      chrome.browserAction.setBadgeText({ text: tasksNumber+"" } );
-    };
-
-    /************************************************************
-     * Add Task
-     ************************************************************/
-    function fillForm(){
-      Asana.ServerModel.me(function(user) {
-        // Just to cache result.
-          Asana.ServerModel.workspaces(function(workspaces) {
-              $("#workspace").html("");
-              workspaces.forEach(function(workspace) {
-                $("#workspace").append(
-                  "<option value='" + workspace.id + "'>" + workspace.name + "</option>");
-              });
-              $("#workspace").val(0);
-              onWorkspaceChanged();
-              $("#workspace").change(onWorkspaceChanged);
-            });
-          });
-  
-    };
-
-    // When the user changes the workspace, update the list of users.
-    var onWorkspaceChanged = function() {
-        var workspace_id = readWorkspaceId();
-        $("#assignee").html("<option>Loading...</option>");
-        Asana.ServerModel.users(workspace_id, function(users) {
-          $("#assignee").html("");
-          if(users && users.length == 0) {
-            users.push(me);
+              };
+              chrome.runtime.onMessage.addListener(listener);
+              me.showAddUi(tab.url, tab.title, '', tab.favIconUrl);
+            }
+          } else {
+            // The user is not even logged in. Prompt them to do so!
+            me.showLogin(
+                Asana.Options.loginUrl(options),
+                Asana.Options.signupUrl(options));
           }
-
-          users = users.sort(function(a, b) {
-            return (a.name < b.name) ? -1 : ((a.name > b.name) ? 1 : 0);
-          });
-          users.forEach(function(user) {
-            $("#assignee").append(
-                "<option value='" + user.id + "'>" + user.name + "</option>");
-          });
-          Asana.ServerModel.me(function(user) {
-            $("#assignee").val(user.id);
-          });
         });
-      };
-
-    var readWorkspaceId = function() {
-        return $("#workspace").val();
-    };
-
-    var readAssignee = function() {
-      return $("#assignee").val();
-    };
-    
-    var createTask = function() {
-        console.info("Creating task");
-        
-      var name = $("#name").val();
-      if($.trim(name).length == 0){
-        showInfo("Please type at least a name.")
-        return;
-      }
-      // show loading gif
-      $(".loading").show();
-      
-      Asana.ServerModel.createTask(
-            readWorkspaceId(),
-            {
-              name: $("#name").val(),
-              notes: $("#notes").val(),
-              assignee: readAssignee()
-            },
-            function(task) {
-          // hide loading gif
-          $(".loading").hide();
-                //setAddWorking(false);
-                showSuccess("Youre task has been added.");
-            },
-            function(response) {
-          // hide loading gif
-          $(".loading").hide();
-              //setAddWorking(false);
-          showError();
-            }
-      );  
-      };
-    
-
-
-    /***********************************************************
-     * Handlers
-     ***********************************************************/
-
-    /**
-     * Click in done.
-     **/
-    $(".done").click(function() {
-      var ids = [];
-      $('#tasks_view :checked').each(function() {
-        var id = $(this).attr('id');
-        ids.push(id);
       });
-  
-      if(ids.length == 0){
-        showInfo("Please select a task first.")
-        return;
-      }
-      
-      tasksCompleted = ids.length;
-  
-      // show loading gif
-      $(".loading").show();
-      
-      ids.forEach(function(id){
-        Asana.ServerModel.markAsDone(id,{
-              completed: "true"
-            }, 
-            function() {
-            }, 
-            function() {
-              failed = true;
-              showError();
-            }
-        );  
-      });
-  
-      // Refresh screen
-      getRemainingTasks();
     });
 
-    /**
-     * Click in add.
-     **/
-    $(".add").click(function() {  
-      inAddTaskView = true;
-      
-      $("#addTask_view").css("display","");
-      
-      $('#tasks_view').animate({"margin-left": "-450px"}, "fast");
-      $('.add').animate({"right": "454px"}, "fast");
-      $('.done').animate({"right": "489px"}, "fast");
-      $('#addTask_view').animate({"left": "5px"}, "fast");
-    });
+    // Wire up some events to DOM elements on the page.
 
-    /**
-    * Click in back.
-    **/
-    $(".back").click(function() {
-      inAddTaskView = false;
-      
-      $('#tasks_view').animate({"margin-left": "0px"}, "fast");
-      $('.add').animate({"right": "4px"}, "fast");
-      $('.done').animate({"right": "39px"}, "fast");
-      $('#addTask_view').animate({"left": "450px"}, "fast");
-    });
-    
-    /**
-    * Click in Add task.
-    **/
-    $("#addButton").click(function() {
-      createTask();
-      
-      // Refresh screen
-      getRemainingTasks();
-      
-      // Clear boxes
-      $("#name").val("");
-      $("#notes").val("");
-    });
-
-    $( "#tasksTable h3" ).click(function() {
-      var target = $( this );
-      target.next().toggleClass( "hideTaskList" );
-      if(target.children(".toggleButton").html() == "-") {
-        target.children(".toggleButton").html("+");
-      } else {
-        target.children(".toggleButton").html("-");
-      }
-    });
-
-    // Close the popup if the ESCAPE key is pressed.
-    window.addEventListener("keydown", function(e) {
-          if (e.keyCode === 27) {
-          window.close();
+    $(window).keydown(function(e) {
+      // Close the popup if the ESCAPE key is pressed.
+      if (e.which === 27) {
+        if (me.is_first_add) {
+          Asana.ServerModel.logEvent({
+            name: "ChromeExtension-Abort"
+          });
         }
-    }, /*capture=*/false);
+        window.close();
+      } else if (e.which === 9) {
+        // Don't let ourselves TAB to focus the document body, so if we're
+        // at the beginning or end of the tab ring, explicitly focus the
+        // other end (setting body.tabindex = -1 does not prevent this)
+        if (e.shiftKey && document.activeElement === me.firstInput().get(0)) {
+          me.lastInput().focus();
+          e.preventDefault();
+        } else if (!e.shiftKey && document.activeElement === me.lastInput().get(0)) {
+          me.firstInput().focus();
+          e.preventDefault();
+        }
+      }
+    });
+
+    // Close if the X is clicked.
+    $(".close-x").click(function() {
+      if (me.is_first_add) {
+        Asana.ServerModel.logEvent({
+          name: "ChromeExtension-Abort"
+        });
+      }
+      window.close();
+    });
+
+    $("#name_input").keyup(function() {
+      if (!me.has_edited_name && $("#name_input").val() !== "") {
+        me.has_edited_name = true;
+        Asana.ServerModel.logEvent({
+          name: "ChromeExtension-ChangedTaskName"
+        });
+      }
+      me.maybeDisablePageDetailsButton();
+    });
+    $("#notes_input").keyup(function() {
+      if (!me.has_edited_notes && $("#notes_input").val() !== "") {
+        me.has_edited_notes= true;
+        Asana.ServerModel.logEvent({
+          name: "ChromeExtension-ChangedTaskNotes"
+        });
+      }
+      me.maybeDisablePageDetailsButton();
+    });
+
+    // The page details button fills in fields with details from the page
+    // in the current tab (cached when the popup opened).
+    var use_page_details_button = $("#use_page_details");
+    use_page_details_button.click(function() {
+      if (!(use_page_details_button.hasClass('disabled'))) {
+        // Page title -> task name
+        $("#name_input").val(me.page_title);
+        // Page url + selection -> task notes
+        var notes = $("#notes_input");
+        notes.val(notes.val() + me.page_url + "\n" + me.page_selection);
+        // Disable the page details button once used.        
+        use_page_details_button.addClass('disabled');
+        if (!me.has_used_page_details) {
+          me.has_used_page_details = true;
+          Asana.ServerModel.logEvent({
+            name: "ChromeExtension-UsedPageDetails"
+          });
+        }
+      }
+    });
+
+    // Make a typeahead for assignee
+//    me.typeahead = new UserTypeahead("assignee");
+
+  },
+
+  maybeDisablePageDetailsButton: function() {
+    if ($("#name_input").val() !== "" || $("#notes_input").val() !== "") {
+      $("#use_page_details").addClass('disabled');
+    } else {
+      $("#use_page_details").removeClass('disabled');
+    }
+  },
+
+  setExpandedUi: function(is_expanded) {
+    if (this.is_external) {
+      window.resizeTo(
+          Asana.POPUP_UI_WIDTH,
+          (is_expanded ? Asana.POPUP_EXPANDED_UI_HEIGHT : Asana.POPUP_UI_HEIGHT)
+              + Asana.CHROME_TITLEBAR_HEIGHT);
+    }
+  },
+
+  showView: function(name) {
+    ["login", "add", "list"].forEach(function(view_name) {
+      $("#" + view_name + "_view").css("display", view_name === name ? "" : "none");
+    });
+  },
+
+  showAddUi: function(url, title, selected_text, favicon_url) {
+    var me = this;
+
+    // Store off info from page we got triggered from.
+    me.page_url = url;
+    me.page_title = title;
+    me.page_selection = selected_text;
+    me.favicon_url = favicon_url;
+
+    // Populate workspace selector and select default.
+    Asana.ServerModel.me(function(user) {
+      me.user_id = user.id;
+      Asana.ServerModel.workspaces(function(workspaces) {
+        me.workspaces = workspaces;
+        var select = $("#workspace_select");
+        select.html("");
+        workspaces.forEach(function(workspace) {
+          $("#workspace_select").append(
+              "<option value='" + workspace.id + "'>" + workspace.name + "</option>");
+        });
+        if (workspaces.length > 1) {
+          $("workspace_select_container").show();
+        } else {
+          $("workspace_select_container").hide();
+        }
+        select.val(me.options.default_workspace_id);
+        me.onWorkspaceChanged();
+        select.change(function() {
+          if (select.val() !== me.options.default_workspace_id) {
+            Asana.ServerModel.logEvent({
+              name: "ChromeExtension-ChangedWorkspace"
+            });
+          }
+          me.onWorkspaceChanged();
+        });
+
+        // Set initial UI state
+        me.resetFields();
+        me.showView("add");
+        var name_input = $("#name_input");
+        name_input.focus();
+        name_input.select();
+
+        if (favicon_url) {
+          $(".icon-use-link").css("background-image", "url(" + favicon_url + ")");
+        } else {
+          $(".icon-use-link").addClass("no-favicon sprite");
+        }
+      });
+    });
+
+  },
+
+  /**
+   * @param enabled {Boolean} True iff the add button should be clickable.
+   */
+  setAddEnabled: function(enabled) {
+    var me = this;
+    var button = $("#add_button");
+    if (enabled) {
+      // Update appearance and add handlers.
+      button.removeClass("disabled");
+      button.addClass("enabled");
+      button.click(function() {
+        me.createTask();
+        return false;
+      });
+      button.keydown(function(e) {
+        if (e.keyCode === 13) {
+          me.createTask();
+        }
+      });
+    } else {
+      // Update appearance and remove handlers.
+      button.removeClass("enabled");
+      button.addClass("disabled");
+      button.unbind('click');
+      button.unbind('keydown');
+    }
+  },
+
+  showError: function(message) {
+    console.log("Error: " + message);
+    $("#error").css("display", "inline-block");
+  },
+
+  hideError: function() {
+    $("#error").css("display", "none");
+  },
+
+  /**
+   * Clear inputs for new task entry.
+   */
+  resetFields: function() {
+    $("#name_input").val("");
+    $("#notes_input").val("");
+    $("#assignee_input").val("");
+    $("#project_input").val("");
+  },
+
+  /**
+   * Set the add button as being "working", waiting for the Asana request
+   * to complete.
+   */
+  setAddWorking: function(working) {
+    this.setAddEnabled(!working);
+    $("#add_button").find(".button-text").text(
+        working ? "Adding..." : "Add to Asana");
+  },
+
+  /**
+   * Creates a typeahead.js object with a bloodhound engine that is attached
+   * to the assignee input.
+   */
+  createUserTypeahead: function() {
+    var me = this;
+    // Instantiate the Bloodhound suggestion engine
+    var selectana = new Bloodhound({
+      datumTokenizer: function (datum) {
+        return Bloodhound.tokenizers.whitespace(datum.value);
+      },
+      queryTokenizer: Bloodhound.tokenizers.whitespace,
+      remote: {
+        url: Asana.ApiBridge.baseApiUrl() + '/workspaces/'
+          + me.selectedWorkspaceId()
+          + '/typeahead?type=user&query=%QUERY&opt_fields=name,photo.image_21x21',
+        ajax : {
+          beforeSend: function(jqXhr, settings){
+            // WARNING: This will be deprecated, please see api_bridge.js
+            jqXhr.setRequestHeader('X-Allow-Asana-Client', '1');
+          }
+        },
+        filter: function (results) {
+          return $.map(results.data, function (result) {
+            console.log(result);
+            return {
+              value: result.name,
+              id: result.id,
+              photo_url: result.photo ? result.photo.image_21x21 : me.SILHOUETTE_URL
+
+            };
+          });
+        }
+      },
+      limit: 8
+    });
+
+    // Clear suggestions and cache when switching workspaces.
+    selectana.clear();
+    selectana.clearRemoteCache();
+    selectana.clearPrefetchCache();
+    // Initialize the Bloodhound suggestion engine.
+    // This is a truthy call, which will recreate the engine as if it were the first call.
+    selectana.initialize(true);
+
+    var assignee_input = $('#assignee_input');
+    // Remove the existing typeahead, we need a new one.
+    assignee_input.typeahead('destroy');
+
+    var onSelected = function (eventObject, suggestionObject, suggestionDataset) {
+      console.log(suggestionObject.photo_url);
+      $('#assignee_list').html(suggestionObject.id);
+    };
+
+    // Instantiate the Typeahead UI
+    assignee_input.typeahead({
+      hint: true,
+      highlight: true
+    }, {
+      displayKey:
+        function(item) {
+          return item.value;
+        },
+      source: selectana.ttAdapter()
+    }).on('typeahead:selected', onSelected);
+  },
+
+  /**
+   * Creates a typeahead.js object with bloodhound engine that is attached to
+   * the project input.
+   */
+  createProjectTypeahead: function() {
+    var me = this;
+    // Instantiate the Bloodhound suggestion engine
+    var selectana = new Bloodhound({
+      datumTokenizer: function (datum) {
+        return Bloodhound.tokenizers.whitespace(datum.value);
+      },
+      queryTokenizer: Bloodhound.tokenizers.whitespace,
+      remote: {
+        url: Asana.ApiBridge.baseApiUrl() + '/workspaces/'
+          + me.selectedWorkspaceId()
+          + '/typeahead?type=project&query=%QUERY',
+        ajax : {
+          beforeSend: function(jqXhr, settings){
+            // WARNING: This will be deprecated, please see api_bridge.js
+            jqXhr.setRequestHeader('X-Allow-Asana-Client', '1');
+          }
+        },
+        filter: function (results) {
+          return $.map(results.data, function (result) {
+            return {
+              value: result.name,
+              id: result.id
+            };
+          });
+        }
+      },
+      limit: 8
+    });
+
+    // Clear suggestions and cache when switching workspaces.
+    selectana.clear();
+    selectana.clearRemoteCache();
+    selectana.clearPrefetchCache();
+    // Initialize the Bloodhound suggestion engine.
+    // This is a truthy call, which will recreate the engine as if it were the first call.
+    selectana.initialize(true);
+
+    var project_input = $('#project_input');
+    // Remove the existing typeahead, we need a new one.
+    project_input.typeahead('destroy');
+
+    var onSelected = function (eventObject, suggestionObject, suggestionDataset) {
+      $('#project_list').html(suggestionObject.id);
+    };
+
+    // Instantiate the Typeahead UI
+    project_input.typeahead({
+      hint: true,
+      highlight: true
+    }, {
+      displayKey: 'value',
+      source: selectana.ttAdapter()
+    }).on('typeahead:selected', onSelected);
+  },
+
+  /**
+   * Update the list of users as a result of setting/changing the workspace.
+   */
+  onWorkspaceChanged: function() {
+    var me = this;
+    var workspace_id = me.selectedWorkspaceId();
+    // Update selected workspace
+    $("#workspace").html($("#workspace_select option:selected").text());
+
+    // Save selection as new default.
+    me.options.default_workspace_id = workspace_id;
+    Asana.ServerModel.saveOptions(me.options, function() {});
+
+    // Update assignee list.
+    me.setAddEnabled(false);
+//    Asana.ServerModel.users(workspace_id, function(users) {
+//      me.typeahead.updateUsers(users);
+//      me.setAddEnabled(true);
+//    });
+
+    // Create the project typeahead, reset for the new workspace.
+    me.createUserTypeahead();
+    me.createProjectTypeahead();
+    me.setAddEnabled(true);
+
+  },
+
+  /**
+   * @param id {Integer}
+   * @return {dict} Workspace data for the given workspace.
+   */
+//  workspaceById: function(id) {
+//    var found = null;
+//    this.workspaces.forEach(function(w) {
+//      if (w.id === id) {
+//        found = w;
+//      }
+//    });
+//    return found;
+//  },
+
+  /**
+   * @return {Integer} ID of the selected workspace.
+   */
+  selectedWorkspaceId: function() {
+    return parseInt($("#workspace_select").val(), 10);
+  },
+
+  assignTaskToUser: function() {
+    var me = this;
+    var assignee_input = $("#assignee_input");
+    // If an assignee was selected, use that person.
+    if (assignee_input.val() !== "") {
+      return $("#assignee_list").text();
+    }
+    var project_input = $("#project_input");
+    // If there's no assignee AND no project, assign to self.
+    if (assignee_input.val() === "" && project_input.val() === "") {
+      return "me";
+    }
+
+    // Otherwise, let user place task in a project.
+    return "";
+  },
+
+  /**
+   * Create a task in asana using the data in the form.
+   */
+  createTask: function() {
+    var me = this;
+
+    // Update UI to reflect attempt to create task.
+    console.info("Creating task");
+    me.hideError();
+    me.setAddWorking(true);
+
+    if (!me.is_first_add) {
+      Asana.ServerModel.logEvent({
+        name: "ChromeExtension-CreateTask-MultipleTasks"
+      });
+    }
+
+    Asana.ServerModel.createTask(
+        me.selectedWorkspaceId(),
+        {
+            name: $("#name_input").val(),
+            notes: $("#notes_input").val(),
+            // Default assignee to self
+            assignee: me.assignTaskToUser(),
+            projects: (($("#project_input").val() !== "") ?
+                [$("#project_list").text()] : [])
+        },
+        function(task) {
+          // Success! Show task success, then get ready for another input.
+          Asana.ServerModel.logEvent({
+            name: "ChromeExtension-CreateTask-Success"
+          });
+          me.setAddWorking(false);
+          me.showSuccess(task);
+          me.resetFields();
+          $("#name_input").focus();
+        },
+        function(response) {
+          // Failure. :( Show error, but leave form available for retry.
+          Asana.ServerModel.logEvent({
+            name: "ChromeExtension-CreateTask-Failure"
+          });
+          me.setAddWorking(false);
+          me.showError(response.errors[0].message);
+        });
+  },
+
+  /**
+   * Helper to show a success message after a task is added.
+   */
+  showSuccess: function(task) {
+    var me = this;
+    Asana.ServerModel.taskViewUrl(task, function(url) {
+      var name = task.name.replace(/^\s*/, "").replace(/\s*$/, "");
+      var link = $("#new_task_link");
+      link.attr("href", url);
+      link.text(name !== "" ? name : "Task");
+      link.unbind("click");
+      link.click(function() {
+        chrome.tabs.create({url: url});
+        window.close();
+        return false;
+      });
+
+      // Reset logging for multi-add
+      me.has_edited_name = true;
+      me.has_edited_notes = true;
+      me.has_reassigned = true;
+      me.is_first_add = false;
+
+      $("#success").css("display", "inline-block");
+    });
+  },
+
+  /**
+   * Show the login page.
+   */
+  showLogin: function(login_url, signup_url) {
+    var me = this;
+    $("#login_button").click(function() {
+      chrome.tabs.create({url: login_url});
+      window.close();
+      return false;
+    });
+    $("#signup_button").click(function() {
+      chrome.tabs.create({url: signup_url});
+      window.close();
+      return false;
+    });
+    me.showView("login");
+  },
+
+  firstInput: function() {
+    return $("#workspace_select");
+  },
+
+  lastInput: function() {
+    return $("#add_button");
+  }
+};
+
+/**
+ * A jQuery-based typeahead similar to the Asana application, which allows
+ * the user to select another user in the workspace by typing in a portion
+ * of their name and selecting from a filtered dropdown.
+ *
+ * Expects elements with the following IDs already in the DOM
+ *   ID: the element where the current assignee will be displayed.
+ *   ID_input: an input element where the user can edit the assignee
+ *   ID_list: an empty DOM whose children will be populated from the users
+ *       in the selected workspace, filtered by the input text.
+ *   ID_list_container: a DOM element containing ID_list which will be
+ *       shown or hidden based on whether the user is interacting with the
+ *       typeahead.
+ *
+ * @param id {String} Base ID of the typeahead element.
+ * @constructor
+ */
+//UserTypeahead = function(id) {
+//  var me = this;
+//  me.id = id;
+//  me.users = [];
+//  me.filtered_users = [];
+//  me.user_id_to_user = {};
+//  me.selected_user_id = null;
+//  me.user_id_to_select = null;
+//  me.has_focus = false;
+//
+//  // Store off UI elements.
+//  me.input = $("#" + id + "_input");
+//  me.label = $("#" + id);
+//  me.list = $("#" + id + "_list");
+//  me.list_container = $("#" + id + "_list_container");
+//
+//  // Open on focus.
+//  me.input.focus(function() {
+//    me.user_id_to_select = me.selected_user_id;
+//    if (me.selected_user_id !== null) {
+//      // If a user was already selected, fill the field with their name
+//      // and select it all.
+//      var assignee_name = me.user_id_to_user[me.selected_user_id].name;
+//      me.input.val(assignee_name);
+//    } else {
+//      me.input.val("");
+//    }
+//    me.has_focus = true;
+//    Popup.setExpandedUi(true);
+//    me._updateFilteredUsers();
+//    me.render();
+//    me._ensureSelectedUserVisible();
+//  });
+//
+//  // Close on blur. A natural blur does not cause us to accept the current
+//  // selection - there had to be a user action taken that causes us to call
+//  // `confirmSelection`, which would have updated user_id_to_select.
+//  me.input.blur(function() {
+//    me.selected_user_id = me.user_id_to_select;
+//    me.has_focus = false;
+//    if (!Popup.has_reassigned) {
+//      Popup.has_reassigned = true;
+//      Asana.ServerModel.logEvent({
+//        name: (me.selected_user_id === Popup.user_id || me.selected_user_id === null) ?
+//            "ChromeExtension-AssignToSelf" :
+//            "ChromeExtension-AssignToOther"
+//      });
+//    }
+//    me.render();
+//    Popup.setExpandedUi(false);
+//  });
+//
+//  // Handle keyboard within input
+//  me.input.keydown(function(e) {
+//    if (e.which === 13) {
+//      // Enter accepts selection, focuses next UI element.
+//      me._confirmSelection();
+//      $("#add_button").focus();
+//      return false;
+//    } else if (e.which === 9) {
+//      // Tab accepts selection. Browser default behavior focuses next element.
+//      me._confirmSelection();
+//      return true;
+//    } else if (e.which === 27) {
+//      // Abort selection. Stop propagation to avoid closing the whole
+//      // popup window.
+//      e.stopPropagation();
+//      me.input.blur();
+//      return false;
+//    } else if (e.which === 40) {
+//      // Down: select next.
+//      var index = me._indexOfSelectedUser();
+//      if (index === -1 && me.filtered_users.length > 0) {
+//        me.setSelectedUserId(me.filtered_users[0].id);
+//      } else if (index >= 0 && index < me.filtered_users.length) {
+//        me.setSelectedUserId(me.filtered_users[index + 1].id);
+//      }
+//      me._ensureSelectedUserVisible();
+//      e.preventDefault();
+//    } else if (e.which === 38) {
+//      // Up: select prev.
+//      var index = me._indexOfSelectedUser();
+//      if (index > 0) {
+//        me.setSelectedUserId(me.filtered_users[index - 1].id);
+//      }
+//      me._ensureSelectedUserVisible();
+//      e.preventDefault();
+//    }
+//  });
+//
+//  // When the input changes value, update and re-render our filtered list.
+//  me.input.bind("input", function() {
+//    me._updateFilteredUsers();
+//    me._renderList();
+//  });
+//
+//  // A user clicking or tabbing to the label should open the typeahead
+//  // and select what's already there.
+//  me.label.focus(function() {
+//    me.input.focus();
+//    me.input.get(0).setSelectionRange(0, me.input.val().length);
+//  });
+//
+//  me.render();
+//};
+
+//Asana.update(UserTypeahead, {
+//
+//  SILHOUETTE_URL: "./nopicture.png",
+//
+//  /**
+//   * @param user {dict}
+//   * @returns {jQuery} photo element
+//   */
+//  photoForUser: function(user) {
+//    var photo = $('<div class="user-photo"></div>"');
+//    var url = user.photo ? user.photo.image_60x60 : UserTypeahead.SILHOUETTE_URL;
+//    photo.css("background-image", "url(" + url + ")");
+//    return $('<div class="user-photo-frame"></div>').append(photo);
+//  }
+//
+//});
+//
+//Asana.update(UserTypeahead.prototype, {
+//
+//  /**
+//   * Render the typeahead, changing elements and content as needed.
+//   */
+//  render: function() {
+//    var me = this;
+//    me._renderLabel();
+//
+//    if (this.has_focus) {
+//      // Focused - show the list and input instead of the label.
+//      me._renderList();
+//      me.input.show();
+//      me.label.hide();
+//      me.list_container.show();
+//    } else {
+//      // Not focused - show the label, not the list or input.
+//      me.input.hide();
+//      me.label.show();
+//      me.list_container.hide();
+//    }
+//  },
+//
+//  /**
+//   * Update the set of all (unfiltered) users available in the typeahead.
+//   *
+//   * @param users {dict[]}
+//   */
+//  updateUsers: function(users) {
+//    var me = this;
+//    // Build a map from user ID to user
+//    var this_user = null;
+//    var users_without_this_user = [];
+//    me.user_id_to_user = {};
+//    users.forEach(function(user) {
+//      if (user.id === Popup.user_id) {
+//        this_user = user;
+//      } else {
+//        users_without_this_user.push(user);
+//      }
+//      me.user_id_to_user[user.id] = user;
+//    });
+//
+//    // Put current user at the beginning of the list.
+//    // We really should have found this user, but if not .. let's not crash.
+//    me.users = this_user ?
+//        [this_user].concat(users_without_this_user) : users_without_this_user;
+//
+//    // If selected user is not in this workspace, unselect them.
+//    if (!(me.selected_user_id in me.user_id_to_user)) {
+//      me.selected_user_id = null;
+//      me.input.val("");
+//    }
+//    me._updateFilteredUsers();
+//    me.render();
+//  },
+//
+//  _renderLabel: function() {
+//    var me = this;
+//    me.label.empty();
+//    var selected_user = me.user_id_to_user[me.selected_user_id];
+//    if (selected_user) {
+//      if (selected_user.photo) {
+//        me.label.append(UserTypeahead.photoForUser(selected_user));
+//      }
+//      me.label.append($('<div class="user-name">').text(selected_user.name));
+//    } else {
+//      me.label.append($('<span class="unassigned">').text("Assignee"));
+//    }
+//  },
+//
+//  _renderList: function() {
+//    var me = this;
+//    me.list.empty();
+//    me.filtered_users.forEach(function(user) {
+//      me.list.append(me._entryForUser(user, user.id === me.selected_user_id));
+//    });
+//  },
+//
+//  _entryForUser: function(user, is_selected) {
+//    var me = this;
+//    var node = $('<div id="user_' + user.id + '" class="user"></div>');
+//    node.append(UserTypeahead.photoForUser(user));
+//    node.append($('<div class="user-name">').text(user.name));
+//    if (is_selected) {
+//      node.addClass("selected");
+//    }
+//
+//    // Select on mouseover.
+//    node.mouseenter(function() {
+//      me.setSelectedUserId(user.id);
+//    });
+//
+//    // Select and confirm on click. We listen to `mousedown` because a click
+//    // will take focus away from the input, hiding the user list and causing
+//    // us not to get the ensuing `click` event.
+//    node.mousedown(function() {
+//      me.setSelectedUserId(user.id);
+//      me._confirmSelection();
+//    });
+//    return node;
+//  },
+//
+//  /**
+//   * Generates a regular expression that will match strings which contain words
+//   * that start with the words in filter_text. The matching is case-insensitive
+//   * and the matching words do not need to be consecutive but they must be in
+//   * the same order as those in filter_text.
+//   *
+//   * @param filter_text {String|null} The input text used to generate the regular
+//   *  expression.
+//   * @returns {Regexp}
+//   */
+//  _regexpFromFilterText: function(filter_text) {
+//    if (!filter_text || filter_text.trim() === '') {
+//      return null;
+//    } else {
+//      var escaped_filter_text = RegExp.escape(
+//          filter_text.trim(),
+//          /*opt_do_not_escape_spaces=*/true);
+//      var parts = escaped_filter_text.trim().split(/\s+/).map(function(word) {
+//        return "(" + word + ")";
+//      }).join("(.*\\s+)");
+//      return new RegExp("(?:\\b|^|(?=\\W))" + parts, "i");
+//    }
+//  },
+//
+//  _confirmSelection: function() {
+//    this.user_id_to_select = this.selected_user_id;
+//  },
+//
+//  _updateFilteredUsers: function() {
+//    var regexp = this._regexpFromFilterText(this.input.val());
+//    this.filtered_users = this.users.filter(function(user) {
+//      if (regexp !== null) {
+//        var parts = user.name.split(regexp);
+//        return parts.length > 1;
+//      } else {
+//        return user.name.trim() !== "";  // no filter
+//      }
+//    });
+//  },
+//
+//  _indexOfSelectedUser: function() {
+//    var me = this;
+//    var selected_user = me.user_id_to_user[me.selected_user_id];
+//    if (selected_user) {
+//      return me.filtered_users.indexOf(selected_user);
+//    } else {
+//      return -1;
+//    }
+//  },
+//
+//  /**
+//   * Helper to call this when the selection was changed by something that
+//   * was not the mouse (which is pointing directly at a visible element),
+//   * to ensure the selected user is always visible in the list.
+//   */
+//  _ensureSelectedUserVisible: function() {
+//    var index = this._indexOfSelectedUser();
+//    if (index !== -1) {
+//      var node = this.list.children().get(index);
+//      Asana.Node.ensureBottomVisible(node);
+//    }
+//  },
+//
+//  setSelectedUserId: function(id) {
+//    if (this.selected_user_id !== null) {
+//      $("#user_" + this.selected_user_id).removeClass("selected");
+//    }
+//    this.selected_user_id = id;
+//    if (this.selected_user_id !== null) {
+//      $("#user_" + this.selected_user_id).addClass("selected");
+//    }
+//    this._renderLabel();
+//  }
+//
+//});
+
+
+$(window).load(function() {
+  Popup.onLoad();
+});
+
+// This is a workaround to add a loading indicator for typeahead.js.
+// See https://github.com/twitter/typeahead.js/issues/284
+$(document).ajaxSend(function(event, jqXHR, settings) {
+    // display spinner
+    $("#spinner").removeClass("indicator-hide");
+    Asana.ServerModel.logEvent({
+      name: "ChromeExtension-Typeahead-SearchStarted"
+    });
+});
+
+$(document).ajaxComplete(function(event, jqXHR, settings) {
+    $("#spinner").addClass("indicator-hide");
+    Asana.ServerModel.logEvent({
+      name: "ChromeExtension-Typeahead-SearchComplete"
+    });
+});

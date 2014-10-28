@@ -1,46 +1,50 @@
 {
+  "manifest_version": 2,
   "name": "One Click Asana List",
   "short_name": "One Click Asana List",
-  "version": "1.0.9",
+  "version": "2.0.0",
   "description": "With this extension you can see your incomplete tasks in there own category, mark them as complete and add new tasks.",
   "icons": {
     "16": "assets/icon16.png",
     "48": "assets/icon48.png",
     "128": "assets/icon128.png" 
   },
-  "minimum_chrome_version": "16",
-
-  "manifest_version": 2,
+  "minimum_chrome_version": "25",
 
   "browser_action": {
     "default_icon": "assets/asanaSmallLogin.png",
     "default_title": "Asana",      
     "default_popup": "popup.html" 
   },
-
-  "background": "background.html",
-  "permissions": [
-    "storage",
-    "tabs",
-    "*://*/*",
-    "cookies",
-    "*://*.asana.com/*",
-    "*://localhost.org/*"
-  ],
-  "content_scripts": [{
-    "matches": [
-      "<all_urls>"
-    ],
-    "exclude_matches": [
-      "*://*.asana.com/*"
-    ],
-    "js": [
+  "background": {
+    "persistent": true,
+    "scripts": [
+      "js/jquery-1.7.1.min.js",
       "js/asana.js",
-      "js/selection_client.js",
-      "js/quick_add_client.js",
+      "js/api_bridge.js",
+      "js/extension_server.js",
+      "js/server_model.js",
+      "js/options.js",
       "js/background.js"
-    ],
-    "run_at": "document_start",
-    "all_frames": false
-  }]
+    ]
+  },
+  "incognito": "split",
+  "offline_enabled": false,
+
+  "permissions": [
+    "tabs",
+    "cookies",
+    "webRequest",
+    "webRequestBlocking",
+    "*://*.asana.com/*",
+    "*://use.typekit.net/*"
+  ],
+  "content_security_policy": "script-src 'self' https://use.typekit.net; object-src 'self'",
+  "commands": {
+    "_execute_browser_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+A"
+      }
+    }
+  }
 }
