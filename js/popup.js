@@ -25,6 +25,7 @@ p = {
   // Data from API cached for this popup
   workspaces: null,
   users: null,
+  default_user: null,
   user_id: null,
   
   // Typeahead ui element
@@ -217,6 +218,7 @@ p = {
   },
 
   showTaskListUi: function() {
+    //p.loadCachedTasks();
     this.getRemainingTasks();
   },
 
@@ -229,6 +231,7 @@ p = {
     Asana.ServerModel.me(function(user) {
       
       me = user;
+      default_user = user;
 
       p.taskIdComp = 0;
       p.tasksNumber = 0;
@@ -324,7 +327,6 @@ p = {
   },
 
   loadCachedTasks: function() {
-      return;
       if(localStorage.getItem("inboxList") ){
         p.tasksInboxNumber = p.showTasks(JSON.parse(localStorage.getItem("inboxList")), "inboxList" );
       }
@@ -462,10 +464,38 @@ p = {
   showError: function(message) {
     console.log("Error: " + message);
     $("#error").css("display", "inline-block");
+    setTimeout(p.hideError, 4000);
   },
 
   hideError: function() {
     $("#error").css("display", "none");
+  },
+
+  showSuccess: function(message) {
+    $("#success").css("display", "");
+    $("#successMessage").html(message === null ? "Done!":message);
+    $('#success').animate({"opacity": "1"}, "fast");
+    setTimeout(p.hideSuccess, 4000);
+  },
+
+  hideSuccess: function() {
+    $('#success').animate({"opacity": "0"}, "fast", function(){
+      $("#success").css("display", "none");
+    });
+  },
+
+  showInfo: function(message) {
+    $("#info").css("display", "");
+    $("#infoMessage").html(message === null ? "Done!":message);
+    $('#info').animate({"opacity": "1"}, "fast");
+    
+    setTimeout(p.hideInfo, 4000);
+  },
+
+  hideInfo: function() {
+    $('#info').animate({"opacity": "0"}, "fast", function(){
+      $("#info").css("display", "none");
+    });
   },
 
   /**
@@ -541,6 +571,8 @@ p = {
       console.log(suggestionObject.photo_url);
       $('#assignee_list').html(suggestionObject.id);
     };
+
+
 
     // Instantiate the Typeahead UI
     assignee_input.typeahead({
@@ -630,10 +662,25 @@ p = {
 
     // Update assignee list.
     me.setAddEnabled(false);
-//    Asana.ServerModel.users(workspace_id, function(users) {
-//      me.typeahead.updateUsers(users);
-//      me.setAddEnabled(true);
-//    });
+    Asana.ServerModel.users(workspace_id, function(users) {
+      console.log(users);
+
+      if(users.length == 0) {
+        users.push(default_user);
+      }
+
+      me.users = users;
+      
+      var select = $("#assignee_select");
+      select.html("");
+      users.forEach(function(user) {
+        $("#assignee_select").append(
+            "<option value='" + user.id + "'>" + user.name + "</option>");
+      });
+
+      //me.typeahead.updateUsers(users);
+      //me.setAddEnabled(true);
+    });
 
     // Create the project typeahead, reset for the new workspace.
     me.createUserTypeahead();
@@ -653,7 +700,7 @@ p = {
 
   assignTaskToUser: function() {
     var me = this;
-    var assignee_input = $("#assignee_input");
+    var assignee_input = $("#assignee_list");
     // If an assignee was selected, use that person.
     if (assignee_input.val() !== "") {
       return $("#assignee_list").text();
@@ -700,8 +747,9 @@ p = {
           Asana.ServerModel.logEvent({
             name: "ChromeExtension-CreateTask-Success"
           });
+          
           me.setAddWorking(false);
-          me.showSuccess(task);
+          me.taskAddedSuccess(task);
           me.resetFields();
           $("#name_input").focus();
         },
@@ -718,7 +766,7 @@ p = {
   /**
    * Helper to show a success message after a task is added.
    */
-  showSuccess: function(task) {
+  taskAddedSuccess: function(task) {
     var me = this;
     Asana.ServerModel.taskViewUrl(task, function(url) {
       var name = task.name.replace(/^\s*/, "").replace(/\s*$/, "");
@@ -738,7 +786,7 @@ p = {
       me.has_reassigned = true;
       me.is_first_add = false;
 
-      $("#success").css("display", "inline-block");
+      $("#task_added").css("display", "inline-block");
     });
   },
 
@@ -797,7 +845,9 @@ $(".done").click(function() {
     Asana.ServerModel.markAsDone(id,{
           completed: "true"
         }, 
-        function() {
+        function(results) {
+          p.showSuccess("Task <b>'"+results.name+"'</b> Completed");
+          $("#"+results.id).parents('tr.taskLine').remove();
         }, 
         function() {
           p.failed = true;

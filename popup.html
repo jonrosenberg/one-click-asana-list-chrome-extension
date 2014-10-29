@@ -102,11 +102,33 @@ http://stackoverflow.com/questions/9498685/resize-popup-html-in-chrome-extension
       <div class="right-column"></div>
     </div>
 
+    <!--<div class="assignee-row">-->
+      <!--<div class="left-column">-->
+        <!--<span class="icon-assignee sprite"></span>-->
+      <!--</div>-->
+      <!--<div class="middle-column">-->
+        <!--<input id="assignee_input" placeholder="Assignee" />-->
+        <!--<div id="assignee" tabindex="0"></div>-->
+      <!--</div>-->
+      <!--<div class="right-column"></div>-->
+    <!--</div>-->
+
+    <!--<div id="assignee_list_container">-->
+      <!--<div id="assignee_list"></div>-->
+    <!--</div>-->
+
     <div class="assignee-row">
       <div class="left-column">
         <span class="icon-assignee sprite"></span>
       </div>
       <div class="middle-column">
+
+        <span id="assignee_list"></span>
+          <div id="assignee_select_container">
+            <select id="assignee_select"><option>Loading...</option></select>
+          
+        </div>
+
         <input id="assignee_input" class="typeahead" placeholder="Assignee" />
       </div>
       <div class="right-column"></div>
@@ -132,14 +154,7 @@ http://stackoverflow.com/questions/9498685/resize-popup-html-in-chrome-extension
         <div id="add_button" tabindex="0" class="button primary-button disabled">
           <span class="button-text">Add to Asana</span>
         </div>
-        <div id="error" style="display:none">
-          <div class="sprite icon-error"></div>
-          Error. Please try again.
-        </div>
-        <div id="success" style="display:none">
-          <div class="sprite icon-success"></div>
-          Added <a id="new_task_link" target="_blank" href=""></a>
-        </div>
+        
       </div>
       <div class="right-column">
         <span><img src="/assets/spinner.gif" id="spinner" class="indicator indicator-hide"></span>
@@ -169,6 +184,29 @@ http://stackoverflow.com/questions/9498685/resize-popup-html-in-chrome-extension
     </div>
   </div>
   <!-- END LOGIN VIEW -->
+  
+  <!-- Task added. -->
+  <div id="task_added" style="display:none">
+    <div class="sprite icon-success"></div>
+    Added <a id="new_task_link" target="_blank" href=""></a>
+  </div>
+  <!-- When an error occurred. -->
+  <div id="error" style="display:none">
+    <span class="sprite icon-error"></span>
+    Sorry, an error occurred. Please try again later.
+  </div>
+  
+  <!-- On success. -->
+  <div id="success" style="display:none">
+    <span class="sprite icon-success"></span>
+    <span id="successMessage"> Error. Please try again. </span>
+  </div>
+
+  <!-- On info. -->
+  <div id="info" style="display:none">
+    <span class="info-icon"></span>
+    <span id="infoMessage"> </span>
+  </div>
 </body>
 
 <!-- Adds event handlers to elements, so we include at the end -->

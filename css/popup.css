@@ -438,11 +438,13 @@ a, input, textarea {
 }
 
 
-#success, #error {
-  width: 175px;
+#success, #error, #task_added, #info {
+  width: 100%;
   display: inline-block;
   vertical-align: middle;
   margin-left: 15px;
+  margin-bottom: 10px;
+  text-align: center;
   font-size: 12px;
   line-height: 17px;
   white-space: nowrap;
@@ -450,7 +452,7 @@ a, input, textarea {
   text-overflow: ellipsis;
 }
 
-#success a, #error a {
+#task_added a, #success a, #error a {
   font-weight: 600;
   text-decoration: none;
   color: #5998c0;

@@ -165,11 +165,11 @@ select, input, textarea {
 
 #tasksNumberInfo{
 	width: 100%;
-	height: 40px;
-  font-size: 9px;
-	color: black;
+	height: 22px;
+  font-size: 14px;
+	color: #888;
 	text-align: center;
-	margin-top:5px;
+	margin-top:10px;
 }
 
 .taskList {
@@ -302,9 +302,8 @@ select, input, textarea {
 
 .loading{
 	position: absolute;
-	margin: 5px;
 	top:0;
-	right:105;
+	right:105px;
 	margin: 5px;
 	margin-top:13px;
 }
@@ -372,7 +371,7 @@ select, input, textarea {
 /*************************************************
  * Errors && Success
  ************************************************/
-#error, #success, #info {
+/*#error, #success, #info {
   	width: 80%;
   	padding: 10px 14px;
   	background-color: #434C56;
@@ -411,7 +410,7 @@ select, input, textarea {
 
 	float:left;
 }
-
+*/
 .info-icon {
   	background-image: url(/assets/info.png);
   	background-position: 0px 0px;
@@ -420,14 +419,13 @@ select, input, textarea {
   	min-width: 19px;
   	height: 16px;
   	min-height: 16px;
-	margin-right: 10px;
+	margin-right: 5px;
   	display: inline-block;
 
-	float:left;
 }
 
 #successMessage,#infoMessage{
-	color: white;
+/*	color: white;*/
 }
 
 

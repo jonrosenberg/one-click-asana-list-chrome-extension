@@ -8,7 +8,8 @@
 Asana.ServerModel = {
 
   // Make requests to API to refresh cache at this interval.
-  CACHE_REFRESH_INTERVAL_MS: 15 * 60 * 1000,
+  //CACHE_REFRESH_INTERVAL_MS: 15 * 60 * 1000,
+  CACHE_REFRESH_INTERVAL_MS: 5000,
 
   _url_to_cached_image: {},
 
