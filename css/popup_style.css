@@ -193,9 +193,7 @@ select, input, textarea {
 }
 
 .toggleButton {
-  text-align: right;
-  position: absolute;
-  right: 26px;
+  float: right;
   opacity: 0.3;
 }
 .taskListTitle:hover .toggleButton {
@@ -280,7 +278,7 @@ select, input, textarea {
 	box-shadow: 1px 1px 5px rgba(0,0,0,0.1);
 }
 
-.add, .back {
+.add {
 	position: absolute;
 	margin: 5px;
 	margin-top: 8px;
@@ -298,7 +296,7 @@ select, input, textarea {
 	box-shadow: 1px 1px 5px rgba(0,0,0,0.1);
 }
 
-.add:hover, .back:hover {
+.add:hover {
 	background-color: rgb(235,239,243);
 }
 

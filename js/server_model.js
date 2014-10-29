@@ -59,6 +59,21 @@ Asana.ServerModel = {
   },
 
   /**
+   * Makes an Asana API request to get all tasks from the 
+   * workspace with that id.
+   *
+   * @param task {dict} Task fields.
+   * @param callback {Function(response)} Callback on success.
+   */
+  tasks: function(workspace_id, callback, errback) {
+    var self = this;
+    Asana.ApiBridge.request("GET", "/tasks?workspace="+workspace_id+"&assignee=me&completed_since=now&opt_fields=assignee_status,name,completed,", {},
+    function(response) {
+      self._makeCallback(response, callback, errback);
+    });
+  },
+
+  /**
    * Get the URL of a task given some of its data.
    *
    * @param task {dict}
@@ -139,6 +154,23 @@ Asana.ServerModel = {
         function(response) {
           self._makeCallback(response, callback, errback);
         });
+  },
+
+  /**
+  * Makes an Asana API request to update a task in the system.
+  *
+  * @param task {dict} Task fields.
+  * @param callback {Function(response)} Callback on success.
+  */
+  markAsDone: function(task_id, task, callback, errback) {
+    var self = this;
+    Asana.ApiBridge.request(
+      "PUT",
+      "/tasks/" + task_id,
+      task,
+      function(response) {
+        self._makeCallback(response, callback, errback);
+      });
   },
 
   logEvent: function(event) {

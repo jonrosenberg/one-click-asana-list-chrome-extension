@@ -15,7 +15,9 @@ http://stackoverflow.com/questions/9498685/resize-popup-html-in-chrome-extension
   <script type="text/javascript" src="js/api_bridge.js"></script>
   <script type="text/javascript" src="js/server_model.js"></script>
   <!-- <script type="text/javascript" src="js/load_typekit.js"></script> -->
+  <link rel="stylesheet" href="css/popup_style.css"/>
   <link rel="stylesheet" href="css/popup.css"/>
+
   <title>
     Asana Quick Add
   </title>
@@ -23,7 +25,7 @@ http://stackoverflow.com/questions/9498685/resize-popup-html-in-chrome-extension
 
 <body>
   <!-- LIST VIEW -->
-  <div id="list_view" style="display:none">
+  <div id="tasks_view" style="display:none">
     <div class="banner">
       <div class="left-column">
         <div id="logo" class="sprite"></div>
@@ -34,6 +36,27 @@ http://stackoverflow.com/questions/9498685/resize-popup-html-in-chrome-extension
         </span>
       </div>
     </div>
+    
+    <!-- Loading icon. -->
+    <img class="loading" src="assets/busy.gif" width="20px" style="display:none" />
+    <div class="done">Done</div>
+    <div class="add">+</div>
+    <div id="tasksTable">
+      <!-- Tasks List --> 
+      <h3 class="taskListTitle">New Tasks (<span id="inboxCount"></span>) <span class="toggleButton">-</span></h3>
+      <table class="taskList" id="inboxList"></table>
+      
+      <h3 class="taskListTitle">Today (<span id="todayCount"></span>) <span class="toggleButton">-</span></h3>
+      <table class="taskList" id="todayList"></table>
+      
+      <h3 class="taskListTitle">Upcoming (<span id="upcomingCount"></span>) <span class="toggleButton">+</span></h3>
+      <table class="taskList hideTaskList" id="upcomingList"></table>
+      
+      <h3 class="taskListTitle">Later (<span id="laterCount"></span>) <span class="toggleButton">+</span></h3>
+      <table class="taskList hideTaskList" id="laterList"></table>
+    </div>
+    <div id="tasksNumberInfo">You have 3 uncompleted tasks.</div>
+
   </div>
   <!-- END LIST VIEW -->
   <!-- ADD VIEW -->
@@ -44,7 +67,7 @@ http://stackoverflow.com/questions/9498685/resize-popup-html-in-chrome-extension
       </div>
       <div class="middle-column">
         <span class="banner-add">
-          Add to
+           Add to
           <span id="workspace"></span>
           <div id="workspace_select_container">
             <select id="workspace_select"><option>Loading...</option></select>
@@ -53,7 +76,7 @@ http://stackoverflow.com/questions/9498685/resize-popup-html-in-chrome-extension
         </span>
       </div>
       <div class="right-column">
-        <a id="close_popup" class="sprite close-x" tabindex="-1"></a>
+        <a id="close_popup" class="sprite back close-x" tabindex="-1"></a>
       </div>
     </div>
 
