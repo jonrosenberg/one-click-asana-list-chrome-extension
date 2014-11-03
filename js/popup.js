@@ -362,11 +362,10 @@ p = {
   
     
   refreshTasksCounter: function() {
-
-    $("#inboxCount").html(p.tasksInboxNumber);
-    $("#todayCount").html(p.tasksTodayNumber);
-    $("#upcomingCount").html(p.tasksUpcomingNumber);
-    $("#laterCount").html(p.tasksLaterNumber);  
+    $("#inboxCount").html( $("#inboxList").find("tr.taskLine").length );
+    $("#todayCount").html( $("#todayList").find("tr.taskLine").length );
+    $("#upcomingCount").html( $("#upcomingList").find("tr.taskLine").length );
+    $("#laterCount").html( $("#laterList").find("tr.taskLine").length );  
 
     $("#tasksNumberInfo").html("");
     if(p.tasksNumber == 1){
@@ -464,37 +463,27 @@ p = {
   showError: function(message) {
     console.log("Error: " + message);
     $("#error").css("display", "inline-block");
-    setTimeout(p.hideError, 4000);
-  },
-
-  hideError: function() {
-    $("#error").css("display", "none");
+    $('#error').animate({"opacity": "1"}, "fast");
+    setTimeout(function(){p.hideMessage("error")}, 4000);
   },
 
   showSuccess: function(message) {
     $("#success").css("display", "");
     $("#successMessage").html(message === null ? "Done!":message);
     $('#success').animate({"opacity": "1"}, "fast");
-    setTimeout(p.hideSuccess, 4000);
-  },
-
-  hideSuccess: function() {
-    $('#success').animate({"opacity": "0"}, "fast", function(){
-      $("#success").css("display", "none");
-    });
+    setTimeout(function(){p.hideMessage("success")}, 4000);
   },
 
   showInfo: function(message) {
     $("#info").css("display", "");
     $("#infoMessage").html(message === null ? "Done!":message);
     $('#info').animate({"opacity": "1"}, "fast");
-    
-    setTimeout(p.hideInfo, 4000);
+    setTimeout(function(){p.hideMessage("info")}, 4000);
   },
 
-  hideInfo: function() {
-    $('#info').animate({"opacity": "0"}, "fast", function(){
-      $("#info").css("display", "none");
+  hideMessage: function(selector) {
+    $('#'+selector).animate({"opacity": "0"}, "fast", function(){
+      $("#"+selector).css("display", "none");
     });
   },
 
@@ -723,7 +712,7 @@ p = {
 
     // Update UI to reflect attempt to create task.
     console.info("Creating task");
-    me.hideError();
+    me.hideMessage("error");
     me.setAddWorking(true);
 
     if (!me.is_first_add) {
@@ -786,7 +775,11 @@ p = {
       me.has_reassigned = true;
       me.is_first_add = false;
 
+
       $("#task_added").css("display", "inline-block");
+      $('#task_added').animate({"opacity": "1"}, "fast");
+
+      setTimeout(function(){p.hideMessage("task_added")}, 15000);
     });
   },
 
@@ -886,7 +879,7 @@ $(".back").click(function() {
   $('.done').animate({"right": "39px"}, "fast");
   p.showView("tasks");
   $('#tasks_view').animate({"margin-left": "0px"}, "fast");
-
+  p.getRemainingTasks();
   
 });
 

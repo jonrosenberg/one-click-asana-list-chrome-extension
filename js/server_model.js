@@ -68,10 +68,18 @@ Asana.ServerModel = {
    */
   tasks: function(workspace_id, callback, errback) {
     var self = this;
-    Asana.ApiBridge.request("GET", "/tasks?workspace="+workspace_id+"&assignee=me&completed_since=now&opt_fields=assignee_status,name,completed,", {},
-    function(response) {
-      self._makeCallback(response, callback, errback);
-    });
+
+    var options = {};
+    options.miss_cache = true;
+    
+    Asana.ApiBridge.request(
+      "GET", 
+      "/tasks?workspace="+workspace_id+"&assignee=me&completed_since=now&opt_fields=assignee_status,name,completed,", 
+      {},
+      function(response) {
+        self._makeCallback(response, callback, errback);
+      },
+      options);
   },
 
   /**
@@ -147,7 +155,6 @@ Asana.ServerModel = {
     if (task.assignee === "") {
       delete task.assignee;
     }
-
     Asana.ApiBridge.request(
         "POST",
         "/workspaces/" + workspace_id + "/tasks",
