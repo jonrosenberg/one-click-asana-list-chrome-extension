@@ -217,6 +217,18 @@ p = {
     });
   },
 
+  switchToAddView: function(){
+    p.inAddTaskView = true;
+
+    $('#add_view').animate({"margin-left": "0px"}, "fast");
+    $('.add').animate({"right": "454px"}, "fast");
+    $('.done').animate({"right": "489px"}, "fast");
+    p.showView("add");
+    
+    $('#tasks_view').animate({"margin-left": "-450px"}, "fast");
+    
+  },
+
   showTaskListUi: function() {
     //p.loadCachedTasks();
     this.getRemainingTasks();
@@ -446,9 +458,10 @@ p = {
         me.createTask();
         return false;
       });
-      button.keydown(function(e) {
-        if (e.keyCode === 13) {
+      $('body').keydown(function(e) {
+        if (e.keyCode === 13 && p.inAddTaskView) {
           me.createTask();
+
         }
       });
     } else {
@@ -463,6 +476,8 @@ p = {
   showError: function(message) {
     console.log("Error: " + message);
     $("#error").css("display", "inline-block");
+    $("#errorMessage").html(message === null ? "Sorry, an error occurred. Please try again later.":message);
+    
     $('#error').animate({"opacity": "1"}, "fast");
     setTimeout(function(){p.hideMessage("error")}, 4000);
   },
@@ -708,6 +723,12 @@ p = {
    * Create a task in asana using the data in the form.
    */
   createTask: function() {
+    
+    if($("#name_input").val().length == 0){
+      p.showInfo("Task name can't be empty");
+      return false;
+    }
+
     var me = this;
 
     // Update UI to reflect attempt to create task.
@@ -841,38 +862,41 @@ $(".done").click(function() {
         function(results) {
           p.showSuccess("Task <b>'"+results.name+"'</b> Completed");
           $("#"+results.id).parents('tr.taskLine').remove();
+          // Refresh screen
+          p.refreshTasksCounter();
+          $(".loading").hide();
         }, 
         function() {
           p.failed = true;
           p.showError();
+          $(".loading").hide();
         }
     );  
   });
 
-  // Refresh screen
-  p.getRemainingTasks();
+  
 });
 /**
  * Click in add.
  **/
-$(".add").click(function() {  
-  inAddTaskView = true;
- 
-  $('#add_view').animate({"margin-left": "0px"}, "fast");
-  $('.add').animate({"right": "454px"}, "fast");
-  $('.done').animate({"right": "489px"}, "fast");
-  p.showView("add");
-  
-  $('#tasks_view').animate({"margin-left": "-450px"}, "fast");
-  
+$(".add").click(function() {
+  p.switchToAddView();
 });
 
+$('body').keyup(function(event) {
+    
+    // Go to add view
+    if(event.keyCode == 13 && !p.inAddTaskView) {
+      p.switchToAddView();
+    }
+   
+});
 
 /**
  * Click in back.
  **/
 $(".back").click(function() {
-  inAddTaskView = false;
+  p.inAddTaskView = false;
   
   $('#add_view').animate({"margin-left": "450px"}, "fast");
   $('.add').animate({"right": "4px"}, "fast");

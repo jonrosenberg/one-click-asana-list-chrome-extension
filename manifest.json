@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "One Click Asana List",
   "short_name": "One Click Asana List",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "With this extension you can see your incomplete tasks in there own category, mark them as complete and add new tasks.",
   "icons": {
     "16": "assets/icon16.png",
@@ -16,6 +16,8 @@
     "default_title": "Asana",      
     "default_popup": "popup.html" 
   },
+  "options_page": "options.html",
+
   "background": {
     "persistent": true,
     "scripts": [
