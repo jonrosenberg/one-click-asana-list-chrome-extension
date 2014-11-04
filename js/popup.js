@@ -241,9 +241,11 @@ p = {
     var projectsArray = [];
     
     Asana.ServerModel.me(function(user) {
-      
+      ga('set', '&uid', user.email); // Set the user ID using signed-in user_id.
+
       me = user;
       default_user = user;
+
 
       p.taskIdComp = 0;
       p.tasksNumber = 0;
@@ -402,6 +404,7 @@ p = {
 
     // Populate workspace selector and select default.
     Asana.ServerModel.me(function(user) {
+      ga('set', '&uid', user.email); // Set the user ID using signed-in user_id.
       me.user_id = user.id;
       Asana.ServerModel.workspaces(function(workspaces) {
         me.workspaces = workspaces;
@@ -941,3 +944,11 @@ $(document).ajaxComplete(function(event, jqXHR, settings) {
       name: "ChromeExtension-Typeahead-SearchComplete"
     });
 });
+
+ (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-1680323-8', 'auto');
+  ga('send', 'pageview');
