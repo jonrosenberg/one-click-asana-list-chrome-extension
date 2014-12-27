@@ -1,5 +1,9 @@
 /* Styles for popup.html */
 
+a, a:hover {
+  text-decoration: none;
+}
+
 /* Common widgets, from Asana app */
 
 .close-x {
@@ -112,11 +116,11 @@
 }
 
 a:link, a:visited {
-  color: #1F8DD6;
+  color: #000;
   text-decoration: none;
 }
 a:hover {
-  text-decoration: underline;
+  color: #1F8DD6;
 }
 
 ::-webkit-scrollbar{

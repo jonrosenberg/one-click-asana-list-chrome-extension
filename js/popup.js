@@ -364,7 +364,7 @@ p = {
 
     $("#"+listSelector).html("");
     for(var i = 0;i<tasksArray.length;i++){
-      $("#"+listSelector).append("<tr class=\"taskLine\"><td width=\"45px\"> <input id=\""+tasksArray[i].id+"\" type=\"checkbox\"  class=\"regular-checkbox\" /> </td><td> <div class=\"truncate\"> "+tasksArray[i].name+"</div></td></tr><tr class=\"emptyLine\"></tr> ");
+      $("#"+listSelector).append("<tr class=\"taskLine\"><td width=\"45px\"> <input id=\""+tasksArray[i].id+"\" type=\"checkbox\"  class=\"regular-checkbox\" /> </td><td> <div class=\"truncate\"> <a href='"+p.createTaskUrl(tasksArray[i].id)+"' target='_blank'>"+tasksArray[i].name+"</a></div></td></tr><tr class=\"emptyLine\"></tr> ");
     }
 
     // Show the table tasks if !inAddTaskView
@@ -461,7 +461,7 @@ p = {
         me.createTask();
         return false;
       });
-      $('body').keydown(function(e) {
+      $('#name_input, #add_button').keydown(function(e) {
         if (e.keyCode === 13 && p.inAddTaskView) {
           me.createTask();
 
@@ -831,6 +831,10 @@ p = {
 
   lastInput: function() {
     return $("#add_button");
+  },
+
+  createTaskUrl: function(taskId) {
+    return "https://app.asana.com/0/"+taskId+"/"+taskId
   }
 };
 
@@ -863,7 +867,7 @@ $(".done").click(function() {
           completed: "true"
         }, 
         function(results) {
-          p.showSuccess("Task <b>'"+results.name+"'</b> Completed");
+          p.showSuccess("Task <b>'<a href='"+p.createTaskUrl(results.id)+"' target='_blank'>"+results.name+"</a>'</b> Completed");
           $("#"+results.id).parents('tr.taskLine').remove();
           // Refresh screen
           p.refreshTasksCounter();
