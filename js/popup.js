@@ -143,15 +143,7 @@ p = {
       }
     });
 
-    // Close if the X is clicked.
-    // $(".close-x").click(function() {
-    //   if (me.is_first_add) {
-    //     Asana.ServerModel.logEvent({
-    //       name: "ChromeExtension-Abort"
-    //     });
-    //   }
-    //   window.close();
-    // });
+    
 
     $("#name_input").keyup(function() {
       if (!me.has_edited_name && $("#name_input").val() !== "") {
@@ -457,11 +449,13 @@ p = {
       // Update appearance and add handlers.
       button.removeClass("disabled");
       button.addClass("enabled");
-      button.click(function() {
+      button.unbind();
+      button.bind("click",function() {
         me.createTask();
         return false;
       });
-      $('#name_input, #add_button').keydown(function(e) {
+      $('#name_input, #add_button').unbind("keydown");
+      $('#name_input, #add_button').bind("keydown",function(e) {
         if (e.keyCode === 13 && p.inAddTaskView) {
           me.createTask();
 
@@ -472,7 +466,7 @@ p = {
       button.removeClass("enabled");
       button.addClass("disabled");
       button.unbind('click');
-      button.unbind('keydown');
+      $('#name_input, #add_button').unbind("keydown");
     }
   },
 
