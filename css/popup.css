@@ -154,7 +154,7 @@ textarea::-webkit-scrollbar-thumb:hover {
 /* Popup-specific layout */
 
 body {
-  overflow: hidden;
+  overflow: scroll;
   /* Also affects Asana.POPUP_UI_WIDTH and Asana.POPUP_UI_HEIGHT */
   width: 410px;
   height: 310px;  /* keep this correct for the window-based (non-button) version */
